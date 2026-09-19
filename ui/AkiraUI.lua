@@ -3465,7 +3465,7 @@ end
 
 Library.Watermark = {
 	Enabled = true;
-	Text = "Noctro";
+	Text = "Akira";
 	Frame = nil :: Frame?;
 }
 
@@ -3561,7 +3561,7 @@ Library.SetWatermark = function(Text: string?, Enabled: boolean?)
 		return Chip("-", Order, true)
 	end
 
-	local CleanText = tostring(Library.Watermark.Text or "Noctro")
+	local CleanText = tostring(Library.Watermark.Text or "Akira")
 
 	local Built = {}
 	for i = 1, #CleanText do
@@ -3577,11 +3577,11 @@ Library.SetWatermark = function(Text: string?, Enabled: boolean?)
 	CleanText = CleanText:gsub("%s+", " ")
 	CleanText = CleanText:gsub("^%s+", ""):gsub("%s+$", "")
 	if CleanText == "" then
-		CleanText = "Noctro"
+		CleanText = "Akira"
 	end
 
 	if CleanText:match("^%d+$") then
-		CleanText = "Noctro"
+		CleanText = "Akira"
 	end
 
 	local Title = Chip(CleanText, 1, false)
