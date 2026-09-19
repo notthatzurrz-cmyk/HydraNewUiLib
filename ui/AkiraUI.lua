@@ -292,6 +292,8 @@ local function EffectiveZ(Object: Instance): number
 	return Z
 end
 
+local GuiInset = GuiService:GetGuiInset()
+
 function Library.Hover.Add(Object: Instance, OnEnter: (() -> ())?, OnLeave: (() -> ())?)
 	Library.Hover.Remove(Object)
 	local Entry = { Object = Object; OnEnter = OnEnter; OnLeave = OnLeave }
@@ -309,7 +311,7 @@ function Library.Hover.Add(Object: Instance, OnEnter: (() -> ())?, OnLeave: (() 
 				return
 			end
 
-			local Mouse = UserInputService:GetMouseLocation()
+			local Mouse = UserInputService:GetMouseLocation() - GuiInset
 			local Current = nil
 			local CurrentZ = -1
 			for i = #HoverItems, 1, -1 do
@@ -321,7 +323,7 @@ function Library.Hover.Add(Object: Instance, OnEnter: (() -> ())?, OnLeave: (() 
 						local Size = Object.AbsoluteSize
 						if Mouse.X >= Pos.X and Mouse.X <= Pos.X + Size.X and Mouse.Y >= Pos.Y and Mouse.Y <= Pos.Y + Size.Y then
 							local Z = EffectiveZ(Object)
-							if Z >= CurrentZ then
+							if Z > CurrentZ then
 								Current = Entry
 								CurrentZ = Z
 							end
@@ -1399,7 +1401,7 @@ Library.Elements.Dropdown = function(self: Library, propertyTable: {})
 			Library.Hover.Add(Button,
 				function()
 					if not IsSelected(Option) then
-						Tween(Button, { BackgroundTransparency = 0.35; BackgroundColor3 = Library.Theme.SurfaceAlt }, 0.08)
+						Tween(Button, { BackgroundTransparency = 0.35; BackgroundColor3 = Library.Theme.SurfaceAlt }, 0.18)
 					end
 				end,
 				function()
@@ -3854,13 +3856,13 @@ Library.UpdateKeybindList = function(Name: string, KeyText: string, Active: bool
 
 		Frame.MouseEnter:Connect(function()
 			if Frame:GetAttribute("Active") then return end
-			Tween(Frame, { BackgroundTransparency = 0.55 }, 0.12)
+			Tween(Frame, { BackgroundTransparency = 0.55 }, 0.20)
 		end)
 		Frame.MouseLeave:Connect(function()
 			if Frame:GetAttribute("Active") then
-				Tween(Frame, { BackgroundTransparency = 0 }, 0.12)
+				Tween(Frame, { BackgroundTransparency = 0 }, 0.15)
 			else
-				Tween(Frame, { BackgroundTransparency = 1 }, 0.12)
+				Tween(Frame, { BackgroundTransparency = 1 }, 0.15)
 			end
 		end)
 
@@ -3873,12 +3875,12 @@ Library.UpdateKeybindList = function(Name: string, KeyText: string, Active: bool
 	Row.Frame:SetAttribute("Active", Active == true)
 
 	if Active then
-		Tween(Row.Frame, { BackgroundTransparency = 0 }, 0.12)
+		Tween(Row.Frame, { BackgroundTransparency = 0 }, 0.15)
 		Row.Name.TextColor3 = T.Text
 		Row.Key.TextColor3 = T.Accent
 		Row.Status.TextColor3 = T.Accent
 	else
-		Tween(Row.Frame, { BackgroundTransparency = 1 }, 0.12)
+		Tween(Row.Frame, { BackgroundTransparency = 1 }, 0.15)
 		Row.Name.TextColor3 = T.Text
 		Row.Key.TextColor3 = T.Text
 		Row.Status.TextColor3 = RGB(160, 160, 165)
@@ -4051,7 +4053,7 @@ Library.Notify = function(propertyTable: {})
 		ZIndex = 5;
 	})
 	Close.MouseEnter:Connect(function()
-		Tween(Close, { TextColor3 = T.Text }, 0.12)
+		Tween(Close, { TextColor3 = T.Text }, 0.20)
 	end)
 	Close.MouseLeave:Connect(function()
 		Tween(Close, { TextColor3 = RGB(140, 144, 155) }, 0.15)
