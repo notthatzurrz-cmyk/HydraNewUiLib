@@ -231,6 +231,8 @@ end
 -- ------- window / page / groupbox facades -------
 
 local WindowList = {}
+local SectionIconPool = { 'player', 'sword', 'shield', 'crosshair', 'star', 'settings', 'palette', 'layers' }
+local TabIconPool = { 'folder', 'box', 'grid', 'sliders', 'key', 'list', 'terminal', 'scan' }
 local function MakeSectionFrom(entry, sectionArgs)
 	local Sec = entry.Section(sectionArgs)
 	return Sec
@@ -308,6 +310,7 @@ local function BuildColorPickerOnLabel(label, id, opts)
 	return RegisterControl(Library.Options, id, ctrl)
 end
 
+local BuildKeyPicker = nil
 local function BuildControl(section, kind, id, opts)
 	opts = opts or {}
 	local userCb = opts.Callback
@@ -423,19 +426,20 @@ local function BuildControl(section, kind, id, opts)
 			SpecialType = opts.SpecialType,
 			OnChanged = function(cb) cbs[#cbs + 1] = cb end,
 			SetValues = function(self, list)
-				ctrl.Values = list or {}
+				ctrl.Values = list or ctrl.Values or {}
 				pcall(el.UpdateOptions, ctrl.Values)
 			end,
 			UpdateOptions = function(self, list) ctrl:SetValues(list) end,
 			SetValue = function(self, v, silent)
-				if not opts.Multi and type(v) == 'number' and type(ctrl.Values[v]) == 'string' then
-					v = ctrl.Values[v]
+				local vals = ctrl.Values or {}
+				if not opts.Multi and type(v) == 'number' and type(vals[v]) == 'string' then
+					v = vals[v]
 				end
 				if opts.Multi then v = (type(v) == 'table') and v or { v } end
 				if opts.Multi then
 					for i = #v, 1, -1 do
-						if type(v[i]) == 'number' and type(ctrl.Values[v[i]]) == 'string' then
-							v[i] = ctrl.Values[v[i]]
+						if type(v[i]) == 'number' and type(vals[v[i]]) == 'string' then
+							v[i] = vals[v[i]]
 						end
 					end
 				end
@@ -480,7 +484,7 @@ local function BuildControl(section, kind, id, opts)
 	end
 end
 
-local function BuildKeyPicker(label, id, opts)
+BuildKeyPicker = function(label, id, opts)
 	opts = opts or {}
 	local mode = opts.Mode or 'Toggle'
 	if opts.SyncToggleState then mode = 'Toggle' end
@@ -721,17 +725,19 @@ ControlBuilders.AddDependencyBox = function(self)
 end
 
 local function MakePage(window, hwin, name, icon)
-	local hp = hwin:Page({ Name = name, Icon = icon or 'folder' })
+	local hp = hwin:Page({ Name = name, Icon = icon or TabIconPool[#window.Tabs % #TabIconPool + 1] })
 	local page = {
 		Name = name,
-		Icon = icon or 'folder',
+		Icon = icon or TabIconPool[#window.Tabs % #TabIconPool + 1],
 		Section = nil,
 		HP = hp,
 		Window = window,
 		IsOpen = false,
 	}
+	local sectionIconCount = 0
 	function page.MakeSide(side, groupName)
-		local Sec = MakeSectionFrom(hp, { Name = groupName or '', Icon = 'player', Side = side })
+		sectionIconCount = sectionIconCount + 1
+		local Sec = MakeSectionFrom(hp, { Name = groupName or '', Icon = SectionIconPool[sectionIconCount % #SectionIconPool + 1], Side = side })
 		return setmetatable({ Section = Sec }, { __index = ControlBuilders })
 	end
 	function page.AddLeftGroupbox(self, groupName)
@@ -751,7 +757,7 @@ local function MakePage(window, hwin, name, icon)
 			Tabs = {},
 		}
 		function tb.AddTab(self, tabName)
-			local Sec = MakeSectionFrom(hp, { Name = tabName or '', Icon = 'folder', Side = side })
+			local Sec = MakeSectionFrom(hp, { Name = tabName or '', Icon = TabIconPool[#tb.Tabs % #TabIconPool + 1], Side = side })
 			local g = setmetatable({ Section = Sec, TabName = tabName }, { __index = ControlBuilders })
 			tb.Tabs[#tb.Tabs + 1] = g
 			return g

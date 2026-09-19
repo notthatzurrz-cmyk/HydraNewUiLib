@@ -279,6 +279,19 @@ local HoverConnected = false
 
 Library.Hover = {}
 
+local function EffectiveZ(Object: Instance): number
+	local Z = 0
+	local Node = Object
+	while Node do
+		if Node:IsA("GuiObject") then
+			local Zi = type(Node.ZIndex) == "number" and Node.ZIndex or 0
+			if Zi > Z then Z = Zi end
+		end
+		Node = Node.Parent
+	end
+	return Z
+end
+
 function Library.Hover.Add(Object: Instance, OnEnter: (() -> ())?, OnLeave: (() -> ())?)
 	Library.Hover.Remove(Object)
 	local Entry = { Object = Object; OnEnter = OnEnter; OnLeave = OnLeave }
@@ -293,24 +306,25 @@ function Library.Hover.Add(Object: Instance, OnEnter: (() -> ())?, OnLeave: (() 
 					HoverActive = nil
 					if Item.OnLeave then pcall(Item.OnLeave) end
 				end
-				for i = #HoverItems, 1, -1 do
-					HoverItems[i] = nil
-				end
-				HoverConnected = false
 				return
 			end
 
 			local Mouse = UserInputService:GetMouseLocation()
 			local Current = nil
-			for _, Entry in HoverItems do
-				if Entry.Object then
+			local CurrentZ = -1
+			for i = #HoverItems, 1, -1 do
+				local Entry = HoverItems[i]
+				if Entry and Entry.Object then
 					local Object = Entry.Object
 					if Object.Parent and Object.Visible and Object.AbsoluteSize.X > 0 then
 						local Pos = Object.AbsolutePosition
 						local Size = Object.AbsoluteSize
 						if Mouse.X >= Pos.X and Mouse.X <= Pos.X + Size.X and Mouse.Y >= Pos.Y and Mouse.Y <= Pos.Y + Size.Y then
-							Current = Entry
-							break
+							local Z = EffectiveZ(Object)
+							if Z >= CurrentZ then
+								Current = Entry
+								CurrentZ = Z
+							end
 						end
 					end
 				end
