@@ -501,14 +501,25 @@ BuildKeyPicker = function(label, id, opts)
 		Changed = {},
 	}
 	local constIsMenuKey = (id == 'MenuKeybind')
-	local el = label:Keybind({
-		Title = opts.Text or opts.Name or tostring(id),
-		Type = (mode == 'Hold') and 'Hold' or 'Toggle',
-		Callback = function(state)
-			kp.Toggled = state == true
-			for i = 1, #kp._onclick do pcall(kp._onclick[i], kp.Toggled) end
-		end,
-	})
+	local el
+	if type(label) == 'table' and type(label.Keybind) == 'function' then
+		el = label:Keybind({
+			Title = opts.Text or opts.Name or tostring(id),
+			Type = (mode == 'Hold') and 'Hold' or 'Toggle',
+			Callback = function(state)
+				kp.Toggled = state == true
+				for i = 1, #kp._onclick do pcall(kp._onclick[i], kp.Toggled) end
+			end,
+		})
+	else
+		el = {
+			Key = nil,
+			Type = mode,
+			Set = function() end,
+			SetType = function() end,
+			GetState = function() return false end,
+		}
+	end
 	kp.Keybind = el
 
 	local function syncFromEl()
