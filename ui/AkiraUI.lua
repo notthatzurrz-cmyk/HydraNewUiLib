@@ -243,6 +243,7 @@ local Lucide = {
 	sparkles = 10734966248,
 	user = 10747373176,
 	users = 10747373426,
+	player = 10747373426,
 	wifi = 10747382504,
 	wrench = 10747383470,
 }
@@ -268,8 +269,78 @@ local function ResolveIcon(Icon: number | string?): string
 	if Id then
 		return "rbxassetid://" .. tostring(Id)
 	end
-	-- unknown name: empty (caller can hide), never force hash
-	return ""
+	-- unknown name: fall back to a guaranteed icon so nothing ever renders blank
+	return "rbxassetid://" .. tostring(Lucide.player or 10734887784)
+end
+
+local HoverItems = {}
+local HoverActive = nil
+local HoverConnected = false
+
+Library.Hover = {}
+
+function Library.Hover.Add(Object: Instance, OnEnter: (() -> ())?, OnLeave: (() -> ())?)
+	Library.Hover.Remove(Object)
+	local Entry = { Object = Object; OnEnter = OnEnter; OnLeave = OnLeave }
+	HoverItems[#HoverItems + 1] = Entry
+
+	if not HoverConnected then
+		HoverConnected = true
+		RunService.RenderStepped:Connect(function()
+			if not Library.MenuOpen then
+				if HoverActive then
+					local Item = HoverActive
+					HoverActive = nil
+					if Item.OnLeave then pcall(Item.OnLeave) end
+				end
+				for i = #HoverItems, 1, -1 do
+					HoverItems[i] = nil
+				end
+				HoverConnected = false
+				return
+			end
+
+			local Mouse = UserInputService:GetMouseLocation()
+			local Current = nil
+			for _, Entry in HoverItems do
+				if Entry.Object then
+					local Object = Entry.Object
+					if Object.Parent and Object.Visible and Object.AbsoluteSize.X > 0 then
+						local Pos = Object.AbsolutePosition
+						local Size = Object.AbsoluteSize
+						if Mouse.X >= Pos.X and Mouse.X <= Pos.X + Size.X and Mouse.Y >= Pos.Y and Mouse.Y <= Pos.Y + Size.Y then
+							Current = Entry
+							break
+						end
+					end
+				end
+			end
+
+			if Current ~= HoverActive then
+				local Prev = HoverActive
+				HoverActive = Current
+				if Prev and Prev.OnLeave then pcall(Prev.OnLeave) end
+				if Current and Current.OnEnter then pcall(Current.OnEnter) end
+			end
+		end)
+	end
+
+	return Entry
+end
+
+function Library.Hover.Remove(Object: Instance)
+	for i = #HoverItems, 1, -1 do
+		local Entry = HoverItems[i]
+		if Entry and Entry.Object == Object then
+			table.remove(HoverItems, i)
+			if HoverActive == Entry then
+				HoverActive = nil
+				if Entry.OnLeave then pcall(Entry.OnLeave) end
+			end
+			return true
+		end
+	end
+	return false
 end
 
 local function ClampToScreen(Object: GuiObject, Position: UDim2): UDim2
@@ -1283,6 +1354,7 @@ Library.Elements.Dropdown = function(self: Library, propertyTable: {})
 
 	local function Build()
 		for _, Button in Buttons do
+			Library.Hover.Remove(Button)
 			Button:Destroy()
 		end
 
@@ -1310,18 +1382,19 @@ Library.Elements.Dropdown = function(self: Library, propertyTable: {})
 				BottomRightRadius = Last and UD(0, 5) or UD(0, 0);
 			})
 
-			Button.MouseEnter:Connect(function()
-				if not IsSelected(Option) then
-					Tween(Button, { BackgroundTransparency = 0.35; BackgroundColor3 = Library.Theme.SurfaceAlt }, 0.08)
-				end
-			end)
-			Button.MouseLeave:Connect(function()
-				local Selected = IsSelected(Option)
-				Tween(Button, {
-					BackgroundTransparency = Selected and 0 or 1;
-					BackgroundColor3 = Selected and RGB(28, 30, 38) or RGB(20, 20, 21);
-				}, 0.08)
-			end)
+			Library.Hover.Add(Button,
+				function()
+					if not IsSelected(Option) then
+						Tween(Button, { BackgroundTransparency = 0.35; BackgroundColor3 = Library.Theme.SurfaceAlt }, 0.08)
+					end
+				end,
+				function()
+					local Selected = IsSelected(Option)
+					Tween(Button, {
+						BackgroundTransparency = Selected and 0 or 1;
+						BackgroundColor3 = Selected and RGB(28, 30, 38) or RGB(20, 20, 21);
+					}, 0.08)
+				end)
 			Button.Activated:Connect(function()
 				Choose(Option)
 			end)
@@ -1390,10 +1463,10 @@ Library.Elements.Dropdown = function(self: Library, propertyTable: {})
 
 			OptionList.Size = UFO(InputFrame.AbsoluteSize.X, 0)
 
-			local Target = UFO(
+			local Target = ClampToScreen(OptionList, UFO(
 				InputFrame.AbsolutePosition.X,
 				InputFrame.AbsolutePosition.Y + InputFrame.AbsoluteSize.Y + 4
-			)
+			))
 
 			OptionList.Position = Target - UFO(0, 8)
 			OptionList.Visible = true
@@ -1566,14 +1639,15 @@ Library.Elements.Button = function(self: Library, propertyTable: {})
 	Library.ThemeLink(Grad, "Gradient", "AccentDark", "Accent")
 	Library.ThemeLink(Click, "BackgroundColor3", "SurfaceAlt")
 
-	Click.MouseEnter:Connect(function()
-		Grad.Enabled = true
-		Tween(Click, { BackgroundColor3 = RGB(255, 255, 255); TextColor3 = RGB(12, 12, 14); TextTransparency = 0 }, 0.12)
-	end)
-	Click.MouseLeave:Connect(function()
-		Grad.Enabled = false
-		Tween(Click, { BackgroundColor3 = Library.Theme.SurfaceAlt; TextColor3 = Library.Theme.Text; TextTransparency = 0.12 }, 0.12)
-	end)
+	Library.Hover.Add(Click,
+		function()
+			Grad.Enabled = true
+			Tween(Click, { BackgroundColor3 = RGB(255, 255, 255); TextColor3 = RGB(12, 12, 14); TextTransparency = 0 }, 0.12)
+		end,
+		function()
+			Grad.Enabled = false
+			Tween(Click, { BackgroundColor3 = Library.Theme.SurfaceAlt; TextColor3 = Library.Theme.Text; TextTransparency = 0.12 }, 0.12)
+		end)
 	Click.Activated:Connect(function()
 		Button.Callback()
 	end)
@@ -1660,7 +1734,10 @@ Library.SubElements.Toggle = function(self: Library, propertyTable: {})
 	Library.ThemeLink(ToggleGrad, "Gradient", "AccentDark", "Accent")
 
 	Toggle.Set = function(state: boolean?, Silent: boolean?)
-		state = state or not Toggle.State
+		if state == nil then
+			state = not Toggle.State
+		end
+		state = state == true
 		Toggle.State = state
 
 		Tween(Overlay, { BackgroundTransparency = state and 0 or 1 }, 0.1)
@@ -1717,8 +1794,8 @@ Library.SubElements.Keybind = function(self: Library, propertyTable: {})
 	local Page = Add("Frame", { Parent = Popup; Name = "Page"; BackgroundColor3 = RGB(255, 255, 255); BackgroundTransparency = 1; BorderColor3 = RGB(0, 0, 0); BorderSizePixel = 0; Position = UFO(0, 35); Size = UD2(1, 0, 1, -35); }) :: Frame
 	local KeyButton = Add("TextButton", { Parent = Page; Name = "KeyButton"; AutoButtonColor = false; BackgroundColor3 = RGB(20, 20, 21); BorderColor3 = RGB(0, 0, 0); BorderSizePixel = 0; FontFace = FN("rbxassetid://12187365364", FW.SemiBold, FS.Normal); Size = UD2(1, 0, 0, 25); Text = ""; TextColor3 = RGB(255, 255, 255); TextSize = 13; TextTransparency = 0.5; }) :: TextButton
 	local Options = Add("Frame", { Parent = Page; Name = "Options"; BackgroundColor3 = RGB(255, 255, 255); BackgroundTransparency = 1; BorderColor3 = RGB(0, 0, 0); BorderSizePixel = 0; Position = UFO(0, 35); Size = UD2(1, 0, 1, -35); }) :: Frame
-	local HoldButton = Add("TextButton", { Parent = Options; Name = "HoldButton"; AutoButtonColor = false; AutomaticSize = AS.X; BackgroundColor3 = RGB(255, 255, 255); BorderColor3 = RGB(0, 0, 0); BorderSizePixel = 0; FontFace = FN("rbxasset://fonts/families/SourceSansPro.json", FW.Regular, FS.Normal); Size = UFS(0, 1); Text = ""; TextColor3 = RGB(0, 0, 0); TextSize = 14; }) :: TextButton
-	local ToggleButton = Add("TextButton", { Parent = Options; Name = "ToggleButton"; AutoButtonColor = false; AutomaticSize = AS.X; BackgroundColor3 = RGB(20, 20, 21); BorderColor3 = RGB(0, 0, 0); BorderSizePixel = 0; FontFace = FN("rbxasset://fonts/families/SourceSansPro.json", FW.Regular, FS.Normal); Size = UFS(0, 1); Text = ""; TextColor3 = RGB(0, 0, 0); TextSize = 14; }) :: TextButton
+	local HoldButton = Add("TextButton", { Parent = Options; Name = "HoldButton"; AutoButtonColor = false; BackgroundColor3 = RGB(255, 255, 255); BorderColor3 = RGB(0, 0, 0); BorderSizePixel = 0; FontFace = FN("rbxasset://fonts/families/SourceSansPro.json", FW.Regular, FS.Normal); Size = UFO(64, 26); Text = ""; TextColor3 = RGB(0, 0, 0); TextSize = 14; }) :: TextButton
+	local ToggleButton = Add("TextButton", { Parent = Options; Name = "ToggleButton"; AutoButtonColor = false; BackgroundColor3 = RGB(20, 20, 21); BorderColor3 = RGB(0, 0, 0); BorderSizePixel = 0; FontFace = FN("rbxasset://fonts/families/SourceSansPro.json", FW.Regular, FS.Normal); Size = UFO(64, 26); Text = ""; TextColor3 = RGB(0, 0, 0); TextSize = 14; }) :: TextButton
 	Add("UICorner", { Parent = Popup; CornerRadius = UD(0, 5); })
 	Add("UIStroke", { Parent = Popup; ApplyStrokeMode = ASM.Border; Color = RGB(36, 37, 37); })
 	Add("UIShadow", { Parent = Popup; BlurRadius = UD(0, 20); Spread = UFO(5, 5); Transparency = 0.65; })
@@ -1732,12 +1809,12 @@ Library.SubElements.Keybind = function(self: Library, propertyTable: {})
 	Add("UICorner", { Parent = KeyButton; CornerRadius = UD(0, 5); })
 	Add("UIPadding", { Parent = Page; PaddingBottom = UD(0, 12); PaddingLeft = UD(0, 12); PaddingRight = UD(0, 12); PaddingTop = UD(0, 12); })
 	Add("UIListLayout", { Parent = Options; FillDirection = FD.Horizontal; HorizontalAlignment = HFA.Center; HorizontalFlex = UFA.Fill; Padding = UD(0, 10); SortOrder = SO.LayoutOrder; VerticalAlignment = VFA.Center; })
-	local HoldLabel = Add("TextLabel", { Parent = HoldButton; Name = "Label"; AutomaticSize = AS.XY; BackgroundColor3 = RGB(255, 255, 255); BackgroundTransparency = 1; BorderColor3 = RGB(0, 0, 0); BorderSizePixel = 0; FontFace = FN("rbxassetid://12187365364", FW.SemiBold, FS.Normal); Size = UFS(1, 1); Text = "Hold"; TextColor3 = RGB(0, 0, 0); TextSize = 14; }) :: TextLabel
+	local HoldLabel = Add("TextLabel", { Parent = HoldButton; Name = "Label"; AutomaticSize = AS.None; BackgroundColor3 = RGB(255, 255, 255); BackgroundTransparency = 1; BorderColor3 = RGB(0, 0, 0); BorderSizePixel = 0; FontFace = FN("rbxassetid://12187365364", FW.SemiBold, FS.Normal); Size = UFS(1, 1); Text = "Hold"; TextColor3 = RGB(0, 0, 0); TextSize = 14; }) :: TextLabel
 	Add("UIPadding", { Parent = HoldButton; PaddingLeft = UD(0, 14); PaddingRight = UD(0, 14); })
 	Add("UICorner", { Parent = HoldButton; CornerRadius = UD(0, 5); })
 	local HoldGradient = Add("UIGradient", { Parent = HoldButton; Color = CS{ CSK(0, RGB(78, 88, 129)), CSK(1, RGB(138, 156, 229)) }; Rotation = -90; }) :: UIGradient
 	local ToggleGradient = Add("UIGradient", { Parent = ToggleButton; Color = CS{ CSK(0, RGB(78, 88, 129)), CSK(1, RGB(138, 156, 229)) }; Enabled = false; Rotation = -90; }) :: UIGradient
-	local ToggleLabel = Add("TextLabel", { Parent = ToggleButton; Name = "Label"; AutomaticSize = AS.XY; BackgroundColor3 = RGB(255, 255, 255); BackgroundTransparency = 1; BorderColor3 = RGB(0, 0, 0); BorderSizePixel = 0; FontFace = FN("rbxassetid://12187365364", FW.SemiBold, FS.Normal); Size = UFS(1, 1); Text = "Toggle"; TextColor3 = RGB(255, 255, 255); TextSize = 14; TextTransparency = 0.5; }) :: TextLabel
+	local ToggleLabel = Add("TextLabel", { Parent = ToggleButton; Name = "Label"; AutomaticSize = AS.None; BackgroundColor3 = RGB(255, 255, 255); BackgroundTransparency = 1; BorderColor3 = RGB(0, 0, 0); BorderSizePixel = 0; FontFace = FN("rbxassetid://12187365364", FW.SemiBold, FS.Normal); Size = UFS(1, 1); Text = "Toggle"; TextColor3 = RGB(255, 255, 255); TextSize = 14; TextTransparency = 0.5; }) :: TextLabel
 	Add("UIPadding", { Parent = ToggleButton; PaddingLeft = UD(0, 14); PaddingRight = UD(0, 14); })
 	Add("UICorner", { Parent = ToggleButton; CornerRadius = UD(0, 5); })
 
@@ -1811,10 +1888,10 @@ Library.SubElements.Keybind = function(self: Library, propertyTable: {})
 		if State then
 			ClaimPopup(Keybind)
 
-			local Target = UFO(
+			local Target = ClampToScreen(Popup, UFO(
 				Settings.AbsolutePosition.X + Settings.AbsoluteSize.X - Popup.AbsoluteSize.X,
 				Settings.AbsolutePosition.Y + Settings.AbsoluteSize.Y + 8
-			)
+			))
 
 			Popup.Position = Target - UFO(0, 10)
 			Popup.Visible = true
@@ -2018,10 +2095,10 @@ Library.SubElements.Colorpicker = function(self: Library, propertyTable: {})
 		if State then
 			ClaimPopup(Colorpicker)
 
-			local Target = UFO(
+			local Target = ClampToScreen(ColorpickerFrame, UFO(
 				Button.AbsolutePosition.X + Button.AbsoluteSize.X - ColorpickerFrame.AbsoluteSize.X,
 				Button.AbsolutePosition.Y + Button.AbsoluteSize.Y + 8
-			)
+			))
 
 			ColorpickerFrame.Position = Target - UFO(0, 10)
 			ColorpickerFrame.Visible = true
@@ -2851,7 +2928,7 @@ end
 Library.Folder = "Noctro"
 Library.ConfigExtension = ".json"
 Library.Autoload = nil
-Library.MenuKey = EKC.LeftAlt
+Library.MenuKey = EKC.RightShift
 Library.MenuOpen = true
 Library.Windows = {}
 Library.Auth = {
@@ -3017,7 +3094,7 @@ Library.GetConfig = function()
 		Flags = {};
 		Theme = {};
 		Layout = Library.GetLayout and Library.GetLayout() or {};
-		MenuKey = Library.MenuKey and Library.MenuKey.Name or "LeftAlt";
+		MenuKey = Library.MenuKey and Library.MenuKey.Name or "RightShift";
 	}
 
 	for Flag, Entry in Library.Flags do

@@ -1,5 +1,5 @@
 --[[
-    Hydra Drawing Library (DrawingLib)
+    Akira Drawing Library (DrawingLib)
     High-performance, object-pooled Drawing API wrapper for Roblox scripts.
     Provides fast, zero-allocation rendering primitives for ESP, FOV, Crosshair, and visual indicators.
 --]]

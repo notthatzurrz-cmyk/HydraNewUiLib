@@ -1,15 +1,15 @@
--- HydraUI bridge (HydraUilib/Library.lua)
--- Loads the local HydraUi.lua library and re-exposes the linoria-style API the
+-- AkiraUI bridge (AkiraUilib/Library.lua)
+-- Loads the local AkiraUI.lua library and re-exposes the linoria-style API the
 -- main script already uses (Window:AddTab, groupboxes, Toggles/Options, ...).
 -- Replaces the previously embedded UE-LIB copy with zero changes to the script.
 
 local HSRC_CANDIDATES = {
-	'ui/HydraUi.lua',
-	'HydraUi.lua',
-	'HydraUilib/HydraUi.lua',
-	'../ui/HydraUi.lua',
+	'ui/AkiraUI.lua',
+	'AkiraUI.lua',
+	'AkiraUilib/AkiraUI.lua',
+	'../ui/AkiraUI.lua',
 }
-local HydraSource = nil
+local AkiraSource = nil
 local libErr = 'no filesystem'
 if readfile and isfile then
 	for _, path in ipairs(HSRC_CANDIDATES) do
@@ -17,25 +17,25 @@ if readfile and isfile then
 		if ok and exists then
 			local okRead, src = pcall(readfile, path)
 			if okRead and type(src) == 'string' and #src > 100 then
-				HydraSource = src
+				AkiraSource = src
 				break
 			end
 		end
 	end
-	if not HydraSource then
-		libErr = 'ui/HydraUi.lua not found in executor workspace'
+	if not AkiraSource then
+		libErr = 'ui/AkiraUI.lua not found in executor workspace'
 	end
 else
 	libErr = 'readfile/isfile unavailable'
 end
-if not HydraSource then
-	error('[Hydra Bridge] ' .. libErr)
+if not AkiraSource then
+	error('[Akira Bridge] ' .. libErr)
 end
 local compile = loadstring or load
-local chunk = assert(compile(HydraSource, '@ui/HydraUi.lua'), '[Hydra Bridge] HydraUi.lua failed to compile')
+local chunk = assert(compile(AkiraSource, '@ui/AkiraUI.lua'), '[Akira Bridge] AkiraUI.lua failed to compile')
 local H = chunk()
 if type(H) ~= 'table' then
-	error('[Hydra Bridge] HydraUi.lua did not return a Library table')
+	error('[Akira Bridge] AkiraUI.lua did not return a Library table')
 end
 
 local UserInputService = game:GetService('UserInputService')
@@ -63,7 +63,7 @@ Library.ViewModels = {}
 Library.MobileGui = nil
 Library.KeybindFrame = nil
 Library.ScreenGui = H._Instance
-Library.Directory = 'hydra'
+Library.Directory = 'akira'
 Library.NotifyToggles = false
 Library.FindWatermark = nil
 Library.AccentColor = (H.Theme and H.Theme.Accent) or Color3.fromRGB(56, 130, 255)
@@ -71,7 +71,7 @@ Library.Font = (H.Font) and (H.Theme and H.Theme.TextColor) and Enum.Font.Code o
 Library.FontSize = 14
 
 if not Library.Watermark then
-	Library.Watermark = { Text = 'Hydra', Enabled = false }
+	Library.Watermark = { Text = 'Akira', Enabled = false }
 end
 
 Library.ToggleKeybind = {
@@ -161,14 +161,14 @@ Library.Notify = function(self, a, b)
 		local typ = a.Type or a.type
 		local dur = a.Duration or a.duration or a.Time
 		pcall(origNotify, H, {
-			Title = tostring(title or 'Hydra'),
+			Title = tostring(title or 'Akira'),
 			Text = tostring(text or ''),
 			Type = tostring(typ or 'Info'),
 			Duration = dur or 3,
 		})
 	else
 		pcall(origNotify, H, {
-			Title = 'Hydra',
+			Title = 'Akira',
 			Text = tostring(a or ''),
 			Duration = b or 3,
 		})
@@ -322,7 +322,7 @@ local function BuildControl(section, kind, id, opts)
 
 	if kind == 'ColorPicker' or kind == 'Colorpicker' then
 		local last = section.LastLabel
-		if not last then error('[Hydra Bridge] AddColorPicker requires a preceding AddLabel') end
+		if not last then error('[Akira Bridge] AddColorPicker requires a preceding AddLabel') end
 		return BuildColorPickerOnLabel(last, id, opts)
 	elseif kind == 'Toggle' then
 		local L = section:Label({ Text = opts.Text or opts.Name or tostring(id) })
@@ -476,7 +476,7 @@ local function BuildControl(section, kind, id, opts)
 		end
 		return RegisterControl(Library.Options, id, ctrl)
 	else
-		error('[Hydra Bridge] Unknown control kind: ' .. tostring(kind))
+		error('[Akira Bridge] Unknown control kind: ' .. tostring(kind))
 	end
 end
 
@@ -611,7 +611,7 @@ ControlBuilders.AddDropdown = function(self, id, opts) return BuildControl(self.
 ControlBuilders.AddInput = function(self, id, opts) return BuildControl(self.Section, 'Input', id, opts) end
 ControlBuilders.AddColorPicker = function(self, id, opts) return BuildControl(self.Section, 'ColorPicker', id, opts) end
 ControlBuilders.AddKeyPicker = function(self, id, opts)
-	if not self.Section.LastLabel then error('[Hydra Bridge] AddKeyPicker requires a preceding AddLabel/AddToggle') end
+	if not self.Section.LastLabel then error('[Akira Bridge] AddKeyPicker requires a preceding AddLabel/AddToggle') end
 	return BuildKeyPicker(self.Section.LastLabel, id, opts, nil)
 end
 ControlBuilders.AddLabel = function(self, text, opts)
@@ -780,7 +780,7 @@ end
 local function NewBridgeWindow(hwin, config)
 	local canvas = hwin.Canvas or H._Instance:FindFirstChild('Canvas')
 	local window = {
-		Name = config.Title or 'Hydra',
+		Name = config.Title or 'Akira',
 		Holder = canvas,
 		Canvas = canvas,
 		Pages = {},
@@ -839,7 +839,7 @@ end
 
 Library.CreateWindow = function(self, config)
 	config = config or {}
-	local title = config.Title or 'Hydra'
+	local title = config.Title or 'Akira'
 	local hwin = H:Window({
 		Title = title,
 		Footer = config.Footer or '',
